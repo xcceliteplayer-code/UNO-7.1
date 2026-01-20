@@ -93,7 +93,27 @@ function enterRoom(){
 
 function startGame(){
   if(!isOwner) return;
-  db.ref("rooms/" + roomCode + "/started").set(true);
+
+  const deck = createDeck();
+  let gamePlayers = {};
+  let turn = 0;
+
+  db.ref("rooms/"+roomCode+"/players").once("value", snap=>{
+    snap.val().forEach(p=>{
+      gamePlayers[p] = deck.splice(0,7);
+    });
+
+    const center = deck.pop();
+
+    db.ref("rooms/"+roomCode+"/game").set({
+      deck: deck,
+      centerCard: center,
+      turn: turn,
+      players: gamePlayers
+    });
+
+    db.ref("rooms/"+roomCode+"/started").set(true);
+  });
 }
 
 const colors = ["red","green","blue","yellow"];
@@ -111,4 +131,32 @@ function createDeck(){
     for(let i=0;i<4;i++) deck.push({color:"black",value:v});
   });
   return deck.sort(()=>Math.random()-0.5);
+}
+
+db.ref("rooms/"+roomCode+"/game").on("value", snap=>{
+  const game = snap.val();
+  if(!game) return;
+
+  renderGame(game);
+});
+
+function renderGame(game){
+  document.getElementById("menu").classList.add("hide");
+  document.getElementById("room").classList.add("hide");
+
+  let area = document.getElementById("playerCards");
+  if(!area){
+    area = document.createElement("div");
+    area.id = "playerCards";
+    document.body.appendChild(area);
+  }
+
+  area.innerHTML = "<h3>Kartu Kamu</h3>";
+
+  game.players[playerName]?.forEach(card=>{
+    const d=document.createElement("div");
+    d.className="card "+card.color;
+    d.innerText=card.value;
+    area.appendChild(d);
+  });
 }
