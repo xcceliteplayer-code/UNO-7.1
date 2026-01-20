@@ -1,13 +1,25 @@
-let room = null;
+// Firebase config (punyamu)
+const firebaseConfig = {
+  apiKey: "AIzaSyATUXGcxuwMZBshlEoZO0LJE_EB5Ac8Vjo",
+  authDomain: "uno-71.firebaseapp.com",
+  databaseURL: "https://uno-71-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "uno-71",
+  storageBucket: "uno-71.firebasestorage.app",
+  messagingSenderId: "938747567207",
+  appId: "1:938747567207:web:354974a278236f30fe88c2"
+};
+
+// Init Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ===== MULTIPLAYER ROOM =====
+let roomCode = null;
+let playerName = "Player-" + Math.floor(Math.random() * 1000);
 let isOwner = false;
-let playerName = "Player-" + Math.floor(Math.random()*1000);
 
 function hideAll(){
   document.querySelectorAll("div").forEach(d=>d.classList.add("hide"));
-}
-
-function startBot(){
-  alert("Bot vs Computer (nanti disambung ke game UNO)");
 }
 
 function openMultiplayer(){
@@ -26,51 +38,60 @@ function showJoin(){
 }
 
 function createRoom(){
-  const code = Math.floor(100000 + Math.random()*900000);
+  roomCode = Math.floor(100000 + Math.random()*900000);
   const max = document.getElementById("maxPlayer").value;
-
-  room = {
-    code,
-    max,
-    players: [playerName],
-    owner: playerName
-  };
-
-  localStorage.setItem("room_"+code, JSON.stringify(room));
   isOwner = true;
+
+  db.ref("rooms/" + roomCode).set({
+    owner: playerName,
+    max: max,
+    players: [playerName],
+    started: false
+  });
+
+  listenRoom();
   enterRoom();
 }
 
 function joinRoom(){
-  const code = document.getElementById("roomInput").value;
-  const data = localStorage.getItem("room_"+code);
-  if(!data) return alert("Room tidak ditemukan");
+  roomCode = document.getElementById("roomInput").value;
 
-  room = JSON.parse(data);
-  if(room.players.length >= room.max)
-    return alert("Room penuh");
+  db.ref("rooms/" + roomCode).once("value", snap=>{
+    if(!snap.exists()) return alert("Room tidak ditemukan");
 
-  room.players.push(playerName);
-  localStorage.setItem("room_"+code, JSON.stringify(room));
-  isOwner = false;
-  enterRoom();
+    const data = snap.val();
+    if(data.players.length >= data.max)
+      return alert("Room penuh");
+
+    data.players.push(playerName);
+    db.ref("rooms/" + roomCode + "/players").set(data.players);
+
+    listenRoom();
+    enterRoom();
+  });
+}
+
+function listenRoom(){
+  db.ref("rooms/" + roomCode).on("value", snap=>{
+    const data = snap.val();
+    if(!data) return;
+
+    document.getElementById("playerList").innerText =
+      "Player: " + data.players.join(", ");
+
+    if(data.started){
+      alert("Game dimulai 🎴");
+    }
+  });
 }
 
 function enterRoom(){
   hideAll();
   document.getElementById("room").classList.remove("hide");
-  document.getElementById("roomCode").innerText = room.code;
-  updateRoom();
-}
-
-function updateRoom(){
-  document.getElementById("playerList").innerText =
-    "Player: " + room.players.join(", ");
-
-  document.getElementById("startBtn").style.display =
-    isOwner ? "inline-block" : "none";
+  document.getElementById("roomCode").innerText = roomCode;
 }
 
 function startGame(){
-  alert("Owner memulai game 🎴");
+  if(!isOwner) return;
+  db.ref("rooms/" + roomCode + "/started").set(true);
 }
