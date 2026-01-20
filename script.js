@@ -143,13 +143,28 @@ db.ref("rooms/"+roomCode+"/game").on("value", snap=>{
 function renderGame(game){
   document.getElementById("menu").classList.add("hide");
   document.getElementById("room").classList.add("hide");
+  document.getElementById("game").classList.remove("hide");
 
-  let area = document.getElementById("playerCards");
-  if(!area){
-    area = document.createElement("div");
-    area.id = "playerCards";
-    document.body.appendChild(area);
-  }
+  // kartu tengah
+  const center = document.getElementById("centerCard");
+  center.className = "card " + game.centerCard.color;
+  center.innerText = game.centerCard.value;
+
+  // kartu player
+  const area = document.getElementById("playerCards");
+  area.innerHTML = "";
+
+  const myCards = game.players[playerName];
+  if(!myCards) return;
+
+  myCards.forEach((card, index)=>{
+    const d = document.createElement("div");
+    d.className = "card " + card.color;
+    d.innerText = card.value;
+    d.onclick = ()=> playCard(index, game);
+    area.appendChild(d);
+  });
+}
 
   area.innerHTML = "<h3>Kartu Kamu</h3>";
 
@@ -180,4 +195,41 @@ const playerRef = db.ref("rooms/"+roomCode+"/players");
 playerRef.onDisconnect().once("value", snap=>{
   let arr=snap.val().filter(p=>p!==playerName);
   playerRef.set(arr);
+});
+
+function playCard(cardIndex, game){
+  const myTurn = game.turn === Object.keys(game.players).indexOf(playerName);
+  if(!myTurn) {
+    alert("Bukan giliran kamu!");
+    return;
+  }
+
+  const card = game.players[playerName][cardIndex];
+  const center = game.centerCard;
+
+  // validasi UNO dasar
+  if(
+    card.color !== center.color &&
+    card.value !== center.value &&
+    card.color !== "black"
+  ){
+    alert("Kartu tidak cocok!");
+    return;
+  }
+
+  // buang kartu
+  game.players[playerName].splice(cardIndex,1);
+  game.centerCard = card;
+
+  // giliran berikutnya
+  const playerNames = Object.keys(game.players);
+  game.turn = (game.turn + 1) % playerNames.length;
+
+  // update firebase
+  db.ref("rooms/"+roomCode+"/game").set(game);
+}
+
+db.ref("rooms/"+roomCode+"/game").on("value", snap=>{
+  const game = snap.val();
+  if(game) renderGame(game);
 });
