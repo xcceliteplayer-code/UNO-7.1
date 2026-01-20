@@ -7,25 +7,42 @@
 </head>
 <body>
 
-<h1>UNO Web 🎴</h1>
-
-<div id="game">
-  <div class="row">
-    <div class="player">
-      <h3>🤖 Bot</h3>
-      <p id="botCount">7 kartu</p>
-    </div>
-
-    <div id="centerCard" class="card">?</div>
-
-    <div class="player">
-      <h3>🙂 Kamu</h3>
-      <div id="playerCards"></div>
-    </div>
-  </div>
+<div id="menu">
+  <h1>UNO Web 🎴</h1>
+  <button onclick="startBot()">🤖 Bot vs Computer</button>
+  <button onclick="openMultiplayer()">🌐 Multiplayer</button>
 </div>
 
-<button onclick="drawCard()">Ambil Kartu</button>
+<div id="multiplayer" class="hide">
+  <h2>Multiplayer</h2>
+  <button onclick="showCreate()">Create Room</button>
+  <button onclick="showJoin()">Join Room</button>
+</div>
+
+<div id="create" class="hide">
+  <h3>Create Room</h3>
+  Max Player:
+  <select id="maxPlayer">
+    <option>2</option>
+    <option>3</option>
+    <option>4</option>
+    <option>5</option>
+    <option>6</option>
+  </select><br><br>
+  <button onclick="createRoom()">Create</button>
+</div>
+
+<div id="join" class="hide">
+  <h3>Join Room</h3>
+  <input id="roomInput" placeholder="Room Code"><br><br>
+  <button onclick="joinRoom()">Join</button>
+</div>
+
+<div id="room" class="hide">
+  <h2>Room Code: <span id="roomCode"></span></h2>
+  <p id="playerList"></p>
+  <button id="startBtn" onclick="startGame()">START</button>
+</div>
 
 <script src="script.js"></script>
 </body>
