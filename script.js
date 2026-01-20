@@ -160,3 +160,18 @@ function renderGame(game){
     area.appendChild(d);
   });
 }
+
+function sendChat(){
+  const msg = document.getElementById("chatInput").value;
+  db.ref("rooms/"+roomCode+"/chat").push({
+    name: playerName,
+    msg: msg
+  });
+  document.getElementById("chatInput").value="";
+}
+
+db.ref("rooms/"+roomCode+"/chat").on("child_added", snap=>{
+  const c=snap.val();
+  document.getElementById("chatBox").innerHTML+=
+    `<p><b>${c.name}</b>: ${c.msg}</p>`;
+});
