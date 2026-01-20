@@ -95,3 +95,20 @@ function startGame(){
   if(!isOwner) return;
   db.ref("rooms/" + roomCode + "/started").set(true);
 }
+
+const colors = ["red","green","blue","yellow"];
+const values = ["0","1","2","3","4","5","6","7","8","9","+2","skip","reverse"];
+const wilds = ["wild","+4"];
+
+function createDeck(){
+  let deck=[];
+  colors.forEach(c=>{
+    values.forEach(v=>{
+      deck.push({color:c,value:v});
+    });
+  });
+  wilds.forEach(v=>{
+    for(let i=0;i<4;i++) deck.push({color:"black",value:v});
+  });
+  return deck.sort(()=>Math.random()-0.5);
+}
