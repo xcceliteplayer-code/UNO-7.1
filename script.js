@@ -175,3 +175,9 @@ db.ref("rooms/"+roomCode+"/chat").on("child_added", snap=>{
   document.getElementById("chatBox").innerHTML+=
     `<p><b>${c.name}</b>: ${c.msg}</p>`;
 });
+
+const playerRef = db.ref("rooms/"+roomCode+"/players");
+playerRef.onDisconnect().once("value", snap=>{
+  let arr=snap.val().filter(p=>p!==playerName);
+  playerRef.set(arr);
+});
