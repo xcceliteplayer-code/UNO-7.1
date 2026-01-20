@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>UNO Web</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>UNO Web 🎴</h1>
+
+<div id="game">
+  <div class="row">
+    <div class="player">
+      <h3>🤖 Bot</h3>
+      <p id="botCount">7 kartu</p>
+    </div>
+
+    <div id="centerCard" class="card">?</div>
+
+    <div class="player">
+      <h3>🙂 Kamu</h3>
+      <div id="playerCards"></div>
+    </div>
+  </div>
+</div>
+
+<button onclick="drawCard()">Ambil Kartu</button>
+
+<script src="script.js"></script>
+</body>
+</html>
