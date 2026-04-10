@@ -2,269 +2,252 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>UNO 3D Web</title>
+<title>UNO 3D PRO</title>
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: #0f172a;
-  font-family: Arial;
-}
-
-#ui {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  color: white;
-  z-index: 10;
-}
-
-button {
-  padding: 8px 12px;
-  margin: 5px;
-  cursor: pointer;
+body { margin:0; overflow:hidden; background:#0f172a; font-family:Arial;}
+#ui { position:absolute; top:10px; left:10px; color:white; z-index:10;}
+input,button { padding:6px; margin:3px;}
+#unoEffect {
+  position:absolute;
+  top:40%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:80px;
+  color:red;
+  text-shadow:0 0 20px yellow,0 0 40px red;
+  display:none;
+  z-index:20;
 }
 </style>
 </head>
 <body>
 
 <div id="ui">
-  <h3>UNO 3D Web</h3>
+  <h3>UNO 3D PRO</h3>
+  Nama: <input id="name" value="Player"><br>
+  Room: <input id="room" value="room1">
+  <button onclick="joinRoom()">Join</button><br>
   <button onclick="drawCard()">Draw</button>
   <button onclick="endTurn()">End Turn</button>
-  <button onclick="cheatWin()">Cheat Win 😈</button>
 </div>
+
+<div id="unoEffect">UNO!</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 
-<!-- ================= FIREBASE ================= -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
-// CONFIG LU
+// ================= FIREBASE =================
 const firebaseConfig = {
   apiKey: "AIzaSyDfNHdFNEUFNjYPOf32ayCxUkJR4KNlMQ8",
   authDomain: "uno3d-dc360.firebaseapp.com",
   databaseURL: "https://uno3d-dc360-default-rtdb.firebaseio.com",
-  projectId: "uno3d-dc360",
-  storageBucket: "uno3d-dc360.firebasestorage.app",
-  messagingSenderId: "903383597250",
-  appId: "1:903383597250:web:3a29958f140ca382c73b5b"
+  projectId: "uno3d-dc360"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ROOM
-const roomId = location.hash.slice(1) || "room1";
+// ================= GLOBAL =================
+let playerName = "Player";
+let roomId = "room1";
 
-// ================= GAME STATE =================
+window.joinRoom = () => {
+  playerName = document.getElementById("name").value;
+  roomId = document.getElementById("room").value;
+  location.hash = roomId;
+  sync();
+};
+
+// ================= GAME =================
 window.gameState = {
-  players: [
-    { name: "P1", cards: [] },
-    { name: "P2", cards: [] }
-  ],
+  players: [],
   currentTurn: 0,
   topCard: null,
   direction: 1
 };
 
-// ================= THREE.JS =================
+// ================= THREE =================
 const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0,5,7);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0, 5, 7);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5,10,7);
-scene.add(light);
+scene.add(new THREE.DirectionalLight(0xffffff,1));
 
 const table = new THREE.Mesh(
-  new THREE.BoxGeometry(10, 0.5, 10),
-  new THREE.MeshPhongMaterial({ color: 0x14532d })
+  new THREE.BoxGeometry(10,0.5,10),
+  new THREE.MeshPhongMaterial({color:0x14532d})
 );
-table.position.y = -1;
+table.position.y=-1;
 scene.add(table);
 
 // ================= CARD =================
-const colors = ["red","yellow","green","blue"];
-const values = ["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2","wild","+4"];
+const colors=["red","yellow","green","blue"];
+const values=["0","1","2","3","4","5","6","7","8","9","+2","skip","reverse","wild","+4"];
 
-function createDeck() {
-  let deck = [];
-  for (let c of colors) {
-    for (let v of values) {
-      deck.push({color:c, value:v});
-    }
-  }
-  return deck;
+function deckGen(){
+  let d=[];
+  colors.forEach(c=>values.forEach(v=>d.push({color:c,value:v})));
+  return d.sort(()=>Math.random()-0.5);
 }
 
-let deck = createDeck();
+let deck = deckGen();
 
-function createCardMesh(cardData) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 384;
+// ================= CARD MESH =================
+function cardMesh(card){
+  const c=document.createElement("canvas");
+  c.width=256; c.height=384;
+  const ctx=c.getContext("2d");
 
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = cardData.color || "black";
+  ctx.fillStyle=card.color||"black";
   ctx.fillRect(0,0,256,384);
 
-  ctx.fillStyle = "white";
-  ctx.font = "bold 80px Arial";
-  ctx.fillText(cardData.value, 50, 200);
+  ctx.fillStyle="white";
+  ctx.font="bold 70px Arial";
+  ctx.fillText(card.value,60,200);
 
-  const texture = new THREE.CanvasTexture(canvas);
-
-  const geometry = new THREE.PlaneGeometry(1,1.5);
-  const material = new THREE.MeshBasicMaterial({ map: texture });
-
-  return new THREE.Mesh(geometry, material);
-}
-
-// ================= INIT =================
-function dealCards() {
-  for (let p of gameState.players) {
-    p.cards = [];
-    for (let i=0;i<7;i++) {
-      p.cards.push(deck.pop());
-    }
-  }
-  gameState.topCard = deck.pop();
+  const tex=new THREE.CanvasTexture(c);
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(1,1.5),
+    new THREE.MeshBasicMaterial({map:tex})
+  );
 }
 
 // ================= RENDER =================
-let cardMeshes = [];
+let meshes=[]; let center;
 
-function renderHand() {
-  cardMeshes.forEach(m => scene.remove(m));
-  cardMeshes = [];
+function render(){
+  meshes.forEach(m=>scene.remove(m));
+  meshes=[];
 
-  let player = gameState.players[0];
+  let me = gameState.players.find(p=>p.name===playerName);
+  if(!me) return;
 
-  player.cards.forEach((card, i) => {
-    let mesh = createCardMesh(card);
-
-    mesh.position.x = (i - player.cards.length/2) * 1.2;
-    mesh.position.z = 3;
-
-    mesh.userData.index = i;
-
-    scene.add(mesh);
-    cardMeshes.push(mesh);
+  me.cards.forEach((card,i)=>{
+    let m=cardMesh(card);
+    m.position.set((i-me.cards.length/2)*1.2,0,3);
+    m.userData=i;
+    scene.add(m);
+    meshes.push(m);
   });
+
+  if(center) scene.remove(center);
+  if(gameState.topCard){
+    center=cardMesh(gameState.topCard);
+    scene.add(center);
+  }
+
+  // UNO EFFECT
+  if(me.cards.length===1){
+    document.getElementById("unoEffect").style.display="block";
+    setTimeout(()=>document.getElementById("unoEffect").style.display="none",1500);
+  }
 }
-
-let centerCardMesh;
-
-function renderCenter() {
-  if (centerCardMesh) scene.remove(centerCardMesh);
-
-  centerCardMesh = createCardMesh(gameState.topCard);
-  scene.add(centerCardMesh);
-}
+window.renderAll = render;
 
 // ================= INPUT =================
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+const ray=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
 
-window.addEventListener("click", (event) => {
-  mouse.x = (event.clientX / window.innerWidth)*2 -1;
-  mouse.y = -(event.clientY / window.innerHeight)*2 +1;
+window.onclick=(e)=>{
+  mouse.x=(e.clientX/innerWidth)*2-1;
+  mouse.y=-(e.clientY/innerHeight)*2+1;
 
-  raycaster.setFromCamera(mouse, camera);
+  ray.setFromCamera(mouse,camera);
+  let hit=ray.intersectObjects(meshes);
 
-  const intersects = raycaster.intersectObjects(cardMeshes);
-
-  if (intersects.length > 0) {
-    playCard(intersects[0].object.userData.index);
+  if(hit.length){
+    play(hit[0].object.userData);
   }
-});
+};
 
 // ================= LOGIC =================
-function playCard(index) {
-  let player = gameState.players[0];
-  let card = player.cards[index];
+function play(i){
+  let me = gameState.players.find(p=>p.name===playerName);
+  let card = me.cards[i];
 
-  if (
-    card.color === gameState.topCard.color ||
-    card.value === gameState.topCard.value ||
-    card.value.includes("wild")
-  ) {
-    gameState.topCard = card;
-    player.cards.splice(index,1);
+  if(!gameState.topCard ||
+     card.color===gameState.topCard.color ||
+     card.value===gameState.topCard.value ||
+     card.value.includes("wild")){
+
+    // animasi lempar
+    let m = meshes[i];
+    let t=0;
+    let anim=()=>{
+      t+=0.05;
+      m.position.lerp(new THREE.Vector3(0,0,0),t);
+      if(t<1) requestAnimationFrame(anim);
+    };
+    anim();
+
+    gameState.topCard=card;
+    me.cards.splice(i,1);
 
     sync();
-    renderAll();
   }
 }
 
-window.drawCard = function() {
-  gameState.players[0].cards.push(deck.pop());
-  sync();
-  renderAll();
-};
-
-window.endTurn = function() {
-  gameState.currentTurn =
-    (gameState.currentTurn + gameState.direction + gameState.players.length)
-    % gameState.players.length;
-
+window.drawCard=()=>{
+  let me=gameState.players.find(p=>p.name===playerName);
+  me.cards.push(deck.pop());
   sync();
 };
 
-window.cheatWin = function() {
-  gameState.players[0].cards = [];
-  renderAll();
+window.endTurn=()=>{
+  gameState.currentTurn=(gameState.currentTurn+1)%gameState.players.length;
+
+  // AI BOT
+  let bot = gameState.players[1];
+  if(bot){
+    setTimeout(()=>{
+      let playable = bot.cards.find(c =>
+        !gameState.topCard ||
+        c.color===gameState.topCard.color ||
+        c.value===gameState.topCard.value ||
+        c.value.includes("wild")
+      );
+      if(playable){
+        gameState.topCard=playable;
+        bot.cards.splice(bot.cards.indexOf(playable),1);
+      }
+      sync();
+    },1000);
+  }
+
+  sync();
 };
 
-// ================= FIREBASE SYNC =================
-window.sync = function() {
-  set(ref(db, "uno/" + roomId), gameState);
-};
+// ================= FIREBASE =================
+function sync(){
+  set(ref(db,"uno/"+roomId),gameState);
+}
 
-onValue(ref(db, "uno/" + roomId), (snapshot) => {
-  if (snapshot.exists()) {
-    window.gameState = snapshot.val();
-    renderAll();
-  } else {
-    dealCards();
+onValue(ref(db,"uno/"+roomId),(snap)=>{
+  if(snap.exists()){
+    gameState=snap.val();
+  }else{
+    gameState.players=[
+      {name:playerName,cards:deck.splice(0,7)},
+      {name:"BOT",cards:deck.splice(0,7)}
+    ];
+    gameState.topCard=deck.pop();
     sync();
   }
-});
-
-// ================= RENDER ALL =================
-function renderAll() {
-  renderHand();
-  renderCenter();
-}
-window.renderAll = renderAll;
-
-// ================= CAMERA =================
-let isDragging = false;
-
-window.addEventListener("mousedown", () => isDragging = true);
-window.addEventListener("mouseup", () => isDragging = false);
-
-window.addEventListener("mousemove", (e) => {
-  if (isDragging) {
-    camera.rotation.y += e.movementX * 0.005;
-    camera.rotation.x += e.movementY * 0.005;
-  }
+  render();
 });
 
 // ================= LOOP =================
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
+function loop(){
+  requestAnimationFrame(loop);
+  renderer.render(scene,camera);
 }
-animate();
+loop();
 
 </script>
 </body>
