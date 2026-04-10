@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>UNO 3D Web</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #0f172a;
+  font-family: Arial;
+}
+
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  z-index: 10;
+}
+
+button {
+  padding: 8px 12px;
+  margin: 5px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <h3>UNO 3D Web</h3>
+  <button onclick="drawCard()">Draw</button>
+  <button onclick="endTurn()">End Turn</button>
+  <button onclick="cheatWin()">Cheat Win 😈</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+<!-- ================= FIREBASE ================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
+
+// CONFIG LU
+const firebaseConfig = {
+  apiKey: "AIzaSyDfNHdFNEUFNjYPOf32ayCxUkJR4KNlMQ8",
+  authDomain: "uno3d-dc360.firebaseapp.com",
+  databaseURL: "https://uno3d-dc360-default-rtdb.firebaseio.com",
+  projectId: "uno3d-dc360",
+  storageBucket: "uno3d-dc360.firebasestorage.app",
+  messagingSenderId: "903383597250",
+  appId: "1:903383597250:web:3a29958f140ca382c73b5b"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ROOM
+const roomId = location.hash.slice(1) || "room1";
+
+// ================= GAME STATE =================
+window.gameState = {
+  players: [
+    { name: "P1", cards: [] },
+    { name: "P2", cards: [] }
+  ],
+  currentTurn: 0,
+  topCard: null,
+  direction: 1
+};
+
+// ================= THREE.JS =================
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 5, 7);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5,10,7);
+scene.add(light);
+
+const table = new THREE.Mesh(
+  new THREE.BoxGeometry(10, 0.5, 10),
+  new THREE.MeshPhongMaterial({ color: 0x14532d })
+);
+table.position.y = -1;
+scene.add(table);
+
+// ================= CARD =================
+const colors = ["red","yellow","green","blue"];
+const values = ["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2","wild","+4"];
+
+function createDeck() {
+  let deck = [];
+  for (let c of colors) {
+    for (let v of values) {
+      deck.push({color:c, value:v});
+    }
+  }
+  return deck;
+}
+
+let deck = createDeck();
+
+function createCardMesh(cardData) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 384;
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = cardData.color || "black";
+  ctx.fillRect(0,0,256,384);
+
+  ctx.fillStyle = "white";
+  ctx.font = "bold 80px Arial";
+  ctx.fillText(cardData.value, 50, 200);
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  const geometry = new THREE.PlaneGeometry(1,1.5);
+  const material = new THREE.MeshBasicMaterial({ map: texture });
+
+  return new THREE.Mesh(geometry, material);
+}
+
+// ================= INIT =================
+function dealCards() {
+  for (let p of gameState.players) {
+    p.cards = [];
+    for (let i=0;i<7;i++) {
+      p.cards.push(deck.pop());
+    }
+  }
+  gameState.topCard = deck.pop();
+}
+
+// ================= RENDER =================
+let cardMeshes = [];
+
+function renderHand() {
+  cardMeshes.forEach(m => scene.remove(m));
+  cardMeshes = [];
+
+  let player = gameState.players[0];
+
+  player.cards.forEach((card, i) => {
+    let mesh = createCardMesh(card);
+
+    mesh.position.x = (i - player.cards.length/2) * 1.2;
+    mesh.position.z = 3;
+
+    mesh.userData.index = i;
+
+    scene.add(mesh);
+    cardMeshes.push(mesh);
+  });
+}
+
+let centerCardMesh;
+
+function renderCenter() {
+  if (centerCardMesh) scene.remove(centerCardMesh);
+
+  centerCardMesh = createCardMesh(gameState.topCard);
+  scene.add(centerCardMesh);
+}
+
+// ================= INPUT =================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener("click", (event) => {
+  mouse.x = (event.clientX / window.innerWidth)*2 -1;
+  mouse.y = -(event.clientY / window.innerHeight)*2 +1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObjects(cardMeshes);
+
+  if (intersects.length > 0) {
+    playCard(intersects[0].object.userData.index);
+  }
+});
+
+// ================= LOGIC =================
+function playCard(index) {
+  let player = gameState.players[0];
+  let card = player.cards[index];
+
+  if (
+    card.color === gameState.topCard.color ||
+    card.value === gameState.topCard.value ||
+    card.value.includes("wild")
+  ) {
+    gameState.topCard = card;
+    player.cards.splice(index,1);
+
+    sync();
+    renderAll();
+  }
+}
+
+window.drawCard = function() {
+  gameState.players[0].cards.push(deck.pop());
+  sync();
+  renderAll();
+};
+
+window.endTurn = function() {
+  gameState.currentTurn =
+    (gameState.currentTurn + gameState.direction + gameState.players.length)
+    % gameState.players.length;
+
+  sync();
+};
+
+window.cheatWin = function() {
+  gameState.players[0].cards = [];
+  renderAll();
+};
+
+// ================= FIREBASE SYNC =================
+window.sync = function() {
+  set(ref(db, "uno/" + roomId), gameState);
+};
+
+onValue(ref(db, "uno/" + roomId), (snapshot) => {
+  if (snapshot.exists()) {
+    window.gameState = snapshot.val();
+    renderAll();
+  } else {
+    dealCards();
+    sync();
+  }
+});
+
+// ================= RENDER ALL =================
+function renderAll() {
+  renderHand();
+  renderCenter();
+}
+window.renderAll = renderAll;
+
+// ================= CAMERA =================
+let isDragging = false;
+
+window.addEventListener("mousedown", () => isDragging = true);
+window.addEventListener("mouseup", () => isDragging = false);
+
+window.addEventListener("mousemove", (e) => {
+  if (isDragging) {
+    camera.rotation.y += e.movementX * 0.005;
+    camera.rotation.x += e.movementY * 0.005;
+  }
+});
+
+// ================= LOOP =================
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+</script>
+</body>
+</html>
