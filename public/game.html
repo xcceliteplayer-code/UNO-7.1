@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNO x Ryzen - Game</title>
+<link rel="stylesheet" href="css/style-game.css">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ░░ GAME LAYOUT ░░ -->
+<div id="gameApp">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="tb-left">
+      <span class="tb-logo">UNO<span class="tb-x">✕</span>RYZEN</span>
+      <div class="tb-room" id="tbRoom">Room: ------</div>
+    </div>
+    <div class="tb-center">
+      <div class="turn-timer" id="turnTimer">
+        <div class="tt-ring" id="ttRing"></div>
+        <div class="tt-num" id="ttNum">30</div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <button class="tb-btn" onclick="toggleChat()">💬</button>
+      <button class="tb-btn" onclick="toggleLog()">📜</button>
+      <button class="tb-btn" id="devBtn" onclick="toggleDev()" style="display:none">🔧</button>
+      <button class="tb-btn red" onclick="leaveGame()">✕</button>
+    </div>
+  </div>
+
+  <!-- MAIN GAME AREA -->
+  <div class="game-area">
+
+    <!-- TOP PLAYERS (opponents) -->
+    <div class="opponents-row" id="opponentsRow"></div>
+
+    <!-- CENTER TABLE -->
+    <div class="table-area">
+      <div class="table-felt">
+
+        <!-- Direction indicator -->
+        <div class="direction-ind" id="directionInd">↻</div>
+
+        <!-- Deck pile -->
+        <div class="pile-wrap">
+          <div class="deck-pile" id="deckPile" onclick="drawCard()">
+            <div class="pile-back">
+              <div class="pile-logo">UNO</div>
+            </div>
+            <div class="pile-count" id="deckCount">108</div>
+          </div>
+
+          <!-- Discard pile -->
+          <div class="discard-area">
+            <div class="discard-pile" id="discardPile"></div>
+            <div class="discard-count" id="discardCount">0</div>
+          </div>
+
+          <!-- Draw stack indicator -->
+          <div class="draw-stack-badge" id="drawStackBadge" style="display:none">
+            <span id="drawStackNum">+0</span>
+          </div>
+        </div>
+
+        <!-- Wild color picker -->
+        <div class="color-picker" id="colorPicker" style="display:none">
+          <div class="cp-title">Pilih Warna</div>
+          <div class="cp-colors">
+            <div class="cp-color red"   onclick="pickColor('red')">🔴</div>
+            <div class="cp-color blue"  onclick="pickColor('blue')">🔵</div>
+            <div class="cp-color green" onclick="pickColor('green')">🟢</div>
+            <div class="cp-color yellow" onclick="pickColor('yellow')">🟡</div>
+          </div>
+        </div>
+
+        <!-- Challenge panel -->
+        <div class="challenge-panel" id="challengePanel" style="display:none">
+          <div class="chal-text">+4 dimainkan! Challenge?</div>
+          <div class="chal-timer" id="chalTimer">7</div>
+          <div class="chal-btns">
+            <button class="chal-btn challenge" onclick="challengeWild4()">⚔️ Challenge!</button>
+            <button class="chal-btn accept"    onclick="acceptWild4()">✅ Terima</button>
+          </div>
+        </div>
+
+        <!-- UNO button -->
+        <button class="uno-btn" id="unoBtn" onclick="callUno()">UNO!</button>
+
+      </div>
+    </div>
+
+    <!-- MY HAND -->
+    <div class="my-area">
+      <div class="my-info" id="myInfo"></div>
+      <div class="hand-container">
+        <div class="hand-scroll" id="myHand"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDE CHAT -->
+  <div class="side-chat" id="sideChat">
+    <div class="sc-header">
+      💬 Chat Room
+      <button onclick="toggleChat()">✕</button>
+    </div>
+    <div class="sc-messages" id="scMessages"></div>
+    <div class="sc-emoji-row" id="scEmojiRow"></div>
+    <div class="sc-input-row">
+      <input type="text" id="scInput" placeholder="Pesan..." maxlength="200"
+             onkeydown="if(event.key==='Enter')sendRoomChat()">
+      <button onclick="sendRoomChat()">📤</button>
+    </div>
+  </div>
+
+  <!-- GAME LOG -->
+  <div class="side-log" id="sideLog">
+    <div class="sc-header">📜 Log
+      <button onclick="toggleLog()">✕</button>
+    </div>
+    <div class="log-messages" id="logMessages"></div>
+  </div>
+
+  <!-- EMOJI FLOAT AREA -->
+  <div class="emoji-float-area" id="emojiFloatArea"></div>
+
+</div>
+
+<!-- ░░ OVERLAYS ░░ -->
+
+<!-- Game over -->
+<div id="gameOverOverlay" class="overlay hidden">
+  <div class="overlay-box">
+    <div class="go-emoji" id="goEmoji">🏆</div>
+    <h2 id="goTitle">Permainan Selesai!</h2>
+    <div class="go-winner" id="goWinner"></div>
+    <div class="go-actions">
+      <button class="btn-restart" onclick="requestRestart()">🔄 Main Lagi</button>
+      <button class="btn-leave-game" onclick="leaveGame()">🚪 Keluar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Color picker overlay (for mobile) -->
+<div id="wildOverlay" class="overlay hidden">
+  <div class="overlay-box">
+    <h2>🌈 Pilih Warna Wild</h2>
+    <div class="wild-colors">
+      <div class="wc-btn red"    onclick="pickColorOverlay('red')">🔴 Merah</div>
+      <div class="wc-btn blue"   onclick="pickColorOverlay('blue')">🔵 Biru</div>
+      <div class="wc-btn green"  onclick="pickColorOverlay('green')">🟢 Hijau</div>
+      <div class="wc-btn yellow" onclick="pickColorOverlay('yellow')">🟡 Kuning</div>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ DEV PANEL ░░ -->
+<div id="devPanel" class="dev-panel hidden">
+  <div class="dev-header">
+    🔧 DEV PANEL <span style="font-size:11px;color:var(--muted)">F2 untuk toggle | ryzenshiky</span>
+    <button onclick="toggleDev()">✕</button>
+  </div>
+  <div class="dev-grid">
+    <button class="dev-btn" onclick="devCmd('forceWin')">🏆 Force Win</button>
+    <button class="dev-btn" onclick="devRevealAll()">👁 Reveal All</button>
+    <button class="dev-btn" onclick="devCmd('skipAll')">⏭ Skip All</button>
+    <button class="dev-btn" onclick="devCmd('freezeGame')">❄️ Freeze</button>
+    <button class="dev-btn" onclick="devSimLag()">🐌 Sim Lag</button>
+    <button class="dev-btn" onclick="devSetColor()">🎨 Set Color</button>
+  </div>
+  <div class="dev-spawn">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">SPAWN KARTU</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <select id="devSpawnColor" style="flex:1">
+        <option value="red">Merah</option><option value="blue">Biru</option>
+        <option value="green">Hijau</option><option value="yellow">Kuning</option>
+        <option value="wild">Wild</option>
+      </select>
+      <select id="devSpawnValue" style="flex:1">
+        <option>0</option><option>1</option><option>2</option><option>3</option>
+        <option>4</option><option>5</option><option>6</option><option>7</option>
+        <option>8</option><option>9</option><option>skip</option>
+        <option>reverse</option><option>draw2</option>
+        <option>wild</option><option>wild4</option>
+      </select>
+      <button class="dev-btn" onclick="devSpawnCard()">✚</button>
+    </div>
+  </div>
+  <div class="dev-log" id="devLogArea"></div>
+</div>
+
+<!-- ░░ DEBUG PANEL (F3) ░░ -->
+<div id="debugPanel" class="debug-panel hidden">
+  <div class="dev-header">🐛 DEBUG <button onclick="toggleDebug()">✕</button></div>
+  <div class="debug-content" id="debugContent" style="font-family:monospace;font-size:11px;color:var(--green);overflow-y:auto;max-height:300px;white-space:pre-wrap"></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<div id="unoAlert" class="uno-alert hidden">🃏 UNO!</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/game-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNO x Ryzen</title>
+<link rel="stylesheet" href="css/style-lobby.css">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ░░ LOADING SCREEN ░░ -->
+<div id="loadingScreen" class="loading-screen">
+  <div class="loading-inner">
+    <div class="loading-logo">
+      <div class="logo-uno">UNO</div>
+      <div class="logo-x">✕</div>
+      <div class="logo-ryzen">RYZEN</div>
+    </div>
+    <div class="loading-cards">
+      <div class="lcard lc-red">7</div>
+      <div class="lcard lc-blue">+2</div>
+      <div class="lcard lc-green">REV</div>
+      <div class="lcard lc-yellow">SKP</div>
+      <div class="lcard lc-wild">🌈</div>
+    </div>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+    <div class="loading-text" id="loadingText">Mengacak kartu...</div>
+  </div>
+</div>
+
+<!-- ░░ NAME ENTRY ░░ -->
+<div id="nameScreen" class="screen hidden">
+  <div class="name-card">
+    <div class="name-logo">
+      <span class="nl-uno">UNO</span><span class="nl-x">✕</span><span class="nl-ryzen">RYZEN</span>
+    </div>
+    <h2 class="name-subtitle">Siapa namamu?</h2>
+    <div class="avatar-picker">
+      <div class="ap-label">Pilih Avatar</div>
+      <div class="ap-grid" id="avatarGrid"></div>
+    </div>
+    <div class="name-input-wrap">
+      <input type="text" id="nameInput" placeholder="Masukkan nama..." maxlength="16" autocomplete="off">
+    </div>
+    <button class="btn-primary" onclick="confirmName()">Masuk Lobby →</button>
+  </div>
+</div>
+
+<!-- ░░ MAIN LOBBY ░░ -->
+<div id="lobbyScreen" class="screen hidden">
+  <div class="lobby-layout">
+
+    <!-- LEFT: Menu -->
+    <div class="lobby-left">
+      <div class="player-badge" id="playerBadge">
+        <span class="pb-avatar" id="pbAvatar"></span>
+        <span class="pb-name" id="pbName"></span>
+        <button class="pb-change" onclick="showNameScreen()">✏️</button>
+      </div>
+
+      <div class="menu-card">
+        <h2 class="mc-title">🎮 Main UNO</h2>
+        <button class="btn-create" onclick="showCreateModal()">➕ Buat Room</button>
+        <div class="divider">atau</div>
+        <div class="join-row">
+          <input type="text" id="joinCodeInput" placeholder="Kode Room" maxlength="6" style="text-transform:uppercase">
+          <button class="btn-join" onclick="joinRoom()">Gabung</button>
+        </div>
+      </div>
+
+      <div class="public-rooms-card">
+        <div class="prc-header">
+          <h3>🌐 Room Publik</h3>
+          <button onclick="refreshPublicRooms()" class="btn-refresh">🔄</button>
+        </div>
+        <div class="public-rooms-list" id="publicRoomsList">
+          <div class="no-rooms">Tidak ada room publik</div>
+        </div>
+      </div>
+
+      <div class="stats-card">
+        <h3>📊 Statistik Sesi</h3>
+        <div class="stat-row"><span>Game Dimainkan</span><span id="statPlayed">0</span></div>
+        <div class="stat-row"><span>Menang</span><span id="statWon">0</span></div>
+        <div class="stat-row"><span>Kartu Dimainkan</span><span id="statCards">0</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Global Chat -->
+    <div class="lobby-right">
+      <div class="chat-card">
+        <div class="chat-header">
+          <span>💬 Chat Global</span>
+          <span class="online-count" id="onlineCount">🟢 Online</span>
+        </div>
+        <div class="chat-messages" id="globalChatMessages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="globalChatInput" placeholder="Ketik pesan..." maxlength="200" onkeydown="if(event.key==='Enter')sendGlobalChat()">
+          <button onclick="sendGlobalChat()">📤</button>
+        </div>
+        <div class="emoji-bar" id="emojiBar"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ░░ CREATE ROOM MODAL ░░ -->
+<div id="createModal" class="modal hidden">
+  <div class="modal-box">
+    <h2>➕ Buat Room Baru</h2>
+    <div class="modal-form">
+      <label>Max Pemain
+        <select id="cfMaxPlayers">
+          <option value="2">2</option><option value="4" selected>4</option>
+          <option value="6">6</option><option value="8">8</option><option value="10">10</option>
+        </select>
+      </label>
+      <label>Mode
+        <select id="cfGameMode">
+          <option value="classic">Classic</option>
+          <option value="fast">Fast Mode</option>
+          <option value="chaos">Chaos Mode</option>
+        </select>
+      </label>
+      <label>Timer Giliran (detik)
+        <input type="number" id="cfTurnTimer" value="30" min="10" max="60">
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="cfStackDraw" checked> Stack +2/+4
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="cfJumpIn"> Jump-In Rule
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="cfSevenZero"> 7-0 Swap Rule
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="cfPublic" checked> Room Publik
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="hideModal('createModal')">Batal</button>
+      <button class="btn-primary" onclick="createRoom()">Buat Room</button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ IN-LOBBY ROOM VIEW ░░ -->
+<div id="roomLobbyScreen" class="screen hidden">
+  <div class="room-lobby-layout">
+    <div class="rl-header">
+      <div class="rl-code-badge">
+        <span class="rl-label">KODE ROOM</span>
+        <span class="rl-code" id="rlCode">------</span>
+        <button onclick="copyCode()" class="rl-copy">📋 Copy</button>
+      </div>
+      <div class="rl-rules" id="rlRules"></div>
+    </div>
+
+    <div class="rl-main">
+      <div class="rl-players" id="rlPlayers"></div>
+
+      <div class="rl-chat">
+        <div class="chat-header">💬 Chat Room</div>
+        <div class="chat-messages" id="roomChatMessages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="roomChatInput" placeholder="Ketik..." maxlength="200" onkeydown="if(event.key==='Enter')sendRoomChat()">
+          <button onclick="sendRoomChat()">📤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="rl-actions" id="rlActions">
+      <button class="btn-leave" onclick="leaveRoom()">← Keluar</button>
+      <button class="btn-start hidden" id="startBtn" onclick="startGame()">🎮 Mulai Game</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/lobby-client.js"></script>
+</body>
+</html>
